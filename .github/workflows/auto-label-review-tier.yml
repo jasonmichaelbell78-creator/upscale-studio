@@ -1,0 +1,162 @@
+name: Auto-Label Review Tier
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  assign-tier:
+    runs-on: ubuntu-latest
+    name: Assign Review Tier Label
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Calculate review tier
+        id: assign-tier
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // Get PR diff stats
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            });
+
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100
+            });
+
+            const changedFiles = files.length;
+            const additions = pr.additions;
+            const deletions = pr.deletions;
+            const totalChanges = additions + deletions;
+
+            // Check for critical files
+            const criticalFiles = files.filter(f =>
+              f.filename.includes('pipeline.py') ||
+              f.filename.includes('main.py') ||
+              f.filename.includes('setup_env.py') ||
+              f.filename.endsWith('.yml') && f.filename.includes('workflows/')
+            );
+
+            let tier = 0;
+
+            // Tier assignment logic
+            if (totalChanges <= 10 && changedFiles <= 2 && criticalFiles.length === 0) {
+              tier = 0; // Trivial: docs, config tweaks
+            } else if (totalChanges <= 50 && changedFiles <= 5) {
+              tier = 1; // Light: small fixes, single-feature
+            } else if (totalChanges <= 200 && changedFiles <= 10) {
+              tier = 2; // Standard: feature work
+            } else if (totalChanges <= 500 || criticalFiles.length > 0) {
+              tier = 3; // Heavy: large features, critical file changes
+            } else {
+              tier = 4; // Critical: major refactors
+            }
+
+            core.setOutput('tier', tier.toString());
+            console.log(`Assigned tier ${tier}: ${changedFiles} files, ${totalChanges} changes, ${criticalFiles.length} critical files`);
+
+      - name: Remove existing tier labels
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const labels = ['tier-0', 'tier-1', 'tier-2', 'tier-3', 'tier-4'];
+            const currentLabels = context.payload.pull_request.labels.map(l => l.name);
+
+            for (const label of labels) {
+              if (!currentLabels.includes(label)) continue;
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  name: label
+                });
+              } catch (e) {
+                const status = e?.status;
+                if (status !== 404 && status !== 422) throw e;
+              }
+            }
+
+      - name: Add tier label
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const tierRaw = '${{ steps.assign-tier.outputs.tier }}';
+            const tier = Number.parseInt(tierRaw, 10);
+
+            if (!Number.isFinite(tier) || tier < 0 || tier > 4) {
+              core.setFailed(`Invalid tier output: "${tierRaw}". Expected 0-4.`);
+              return;
+            }
+
+            const labelName = `tier-${tier}`;
+
+            const tierColors = {
+              'tier-0': '0E8A16',
+              'tier-1': '7057FF',
+              'tier-2': 'FBCA04',
+              'tier-3': 'F9A825',
+              'tier-4': 'D93F0B'
+            };
+
+            // Ensure tier label exists
+            try {
+              await github.rest.issues.getLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: labelName
+              });
+            } catch (e) {
+              if (e?.status !== 404) throw e;
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: labelName,
+                color: tierColors[labelName] || '0E8A16',
+                description: `Review tier ${tier} - auto-assigned by workflow`
+              });
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: [labelName]
+            });
+
+            const tierDescriptions = {
+              0: 'Tier 0 (Exempt): Auto-merge eligible. No human review required.',
+              1: 'Tier 1 (Light): AI review only. Human review optional.',
+              2: 'Tier 2 (Standard): AI + 1 human review required.',
+              3: 'Tier 3 (Heavy): AI + 2 human reviews + security checklist required.',
+              4: 'Tier 4 (Critical): RFC + Multi-AI + all codebase owners required.'
+            };
+
+            if (context.payload.action === 'opened' || context.payload.action === 'reopened') {
+              const comment = [
+                `## Review Tier Assigned: **Tier ${tier}**`,
+                '',
+                tierDescriptions[tier] || 'Unknown tier',
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: comment
+              });
+            }

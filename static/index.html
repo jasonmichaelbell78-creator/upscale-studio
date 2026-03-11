@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upscale Studio</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Upscale Studio</h1>
+        <span class="subtitle">Local AI Video Upscaling</span>
+    </header>
+
+    <main>
+        <!-- Upload Section -->
+        <section id="upload-section">
+            <div id="drop-zone" tabindex="0">
+                <div class="drop-icon">&#x1F4C1;</div>
+                <p>Drag &amp; drop a video file here</p>
+                <p class="subtle">or click to browse</p>
+                <input type="file" id="file-input" accept="video/*" hidden>
+            </div>
+            <div id="upload-progress-wrap" class="hidden">
+                <p id="upload-label">Uploading...</p>
+                <div class="progress-bar-container">
+                    <div id="upload-progress-bar" class="progress-bar" style="width: 0%"></div>
+                </div>
+                <span id="upload-pct" class="upload-pct">0%</span>
+            </div>
+            <div class="file-path-section">
+                <div class="divider-text"><span>or paste a file path (recommended for large files)</span></div>
+                <div class="path-input-row">
+                    <input type="text" id="file-path-input" placeholder="C:\Movies\my_video.mp4">
+                    <button id="btn-select-file" class="btn btn-secondary">Open</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Video Info Section -->
+        <section id="info-section" class="hidden">
+            <h2>Video Details</h2>
+            <div class="info-grid">
+                <div class="info-item"><span class="label">File</span><span id="info-filename">-</span></div>
+                <div class="info-item"><span class="label">Resolution</span><span id="info-resolution">-</span></div>
+                <div class="info-item"><span class="label">Duration</span><span id="info-duration">-</span></div>
+                <div class="info-item"><span class="label">FPS</span><span id="info-fps">-</span></div>
+                <div class="info-item"><span class="label">Size</span><span id="info-size">-</span></div>
+                <div class="info-item"><span class="label">Frames</span><span id="info-frames">-</span></div>
+            </div>
+
+            <div id="output-estimate" class="estimate"></div>
+            <div id="disk-space-warning" class="hidden warning-box"></div>
+        </section>
+
+        <!-- Settings Section -->
+        <section id="settings-section" class="hidden">
+            <h2>Upscale Settings</h2>
+            <div class="settings-grid">
+                <div class="setting">
+                    <label for="scale">Scale Factor</label>
+                    <select id="scale">
+                        <option value="2" selected>2x</option>
+                        <option value="4">4x</option>
+                    </select>
+                </div>
+                <div class="setting">
+                    <label for="model">AI Model</label>
+                    <select id="model">
+                        <option value="realesrgan-x4plus" selected>Real-ESRGAN x4plus (live action)</option>
+                        <option value="realesr-animevideov3">Anime Video v3 (anime/cartoon)</option>
+                    </select>
+                </div>
+                <div class="setting">
+                    <label for="codec">Output Codec</label>
+                    <select id="codec">
+                        <option value="libx264" selected>H.264 (compatible)</option>
+                        <option value="libx265">H.265 (smaller file)</option>
+                    </select>
+                </div>
+                <div class="setting">
+                    <label for="tile-size">Tile Size (VRAM)</label>
+                    <select id="tile-size">
+                        <option value="0" selected>Auto</option>
+                        <option value="128">128 (low VRAM)</option>
+                        <option value="256">256</option>
+                        <option value="512">512 (high VRAM)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="btn-preview" class="btn btn-secondary">Preview Frame</button>
+                <button id="btn-upscale" class="btn btn-primary">Start Upscale</button>
+            </div>
+        </section>
+
+        <!-- Preview Section -->
+        <section id="preview-section" class="hidden">
+            <h2>Preview Comparison</h2>
+            <p id="preview-loading" class="hidden">Generating preview... this may take a few seconds.</p>
+            <div id="preview-container" class="hidden">
+                <div class="preview-pane">
+                    <h3>Original <span id="preview-original-res"></span></h3>
+                    <img id="preview-original" alt="Original frame">
+                </div>
+                <div class="preview-pane">
+                    <h3>Upscaled <span id="preview-upscaled-res"></span></h3>
+                    <img id="preview-upscaled" alt="Upscaled frame">
+                </div>
+            </div>
+        </section>
+
+        <!-- Progress Section -->
+        <section id="progress-section" class="hidden">
+            <h2>Processing</h2>
+            <div id="phase-label">Preparing...</div>
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+            </div>
+            <div class="progress-stats">
+                <span id="stat-frames">0 / 0 frames</span>
+                <span id="stat-percent">0%</span>
+            </div>
+            <div class="progress-stats">
+                <span id="stat-elapsed">Elapsed: 0s</span>
+                <span id="stat-eta">ETA: calculating...</span>
+            </div>
+            <div id="stat-chunk" class="progress-stats chunk-info"></div>
+            <div class="actions">
+                <button id="btn-cancel" class="btn btn-danger">Cancel</button>
+            </div>
+        </section>
+
+        <!-- Done Section -->
+        <section id="done-section" class="hidden">
+            <h2>Upscale Complete!</h2>
+            <p id="done-message"></p>
+            <div class="actions">
+                <button id="btn-download" class="btn btn-primary">Download Video</button>
+                <button id="btn-new" class="btn btn-secondary">Upscale Another</button>
+            </div>
+        </section>
+
+        <!-- Error Section -->
+        <section id="error-section" class="hidden">
+            <h2>Something went wrong</h2>
+            <pre id="error-message"></pre>
+            <div class="actions">
+                <button id="btn-retry" class="btn btn-secondary">Try Again</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        Upscale Studio &mdash; Powered by Real-ESRGAN &amp; FFmpeg
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

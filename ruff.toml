@@ -1,0 +1,30 @@
+# Ruff linter & formatter configuration
+# Docs: https://docs.astral.sh/ruff/
+
+target-version = "py312"
+line-length = 100
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "S",    # flake8-bandit (security)
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "PTH",  # flake8-use-pathlib
+]
+ignore = [
+    "S603",  # subprocess call - check for execution of untrusted input (we validate inputs)
+    "S607",  # starting a process with a partial executable path (we use full paths from bin/)
+]
+
+[lint.per-file-ignores]
+"setup_env.py" = ["S310"]  # Audit URL open for permitted schemes (intentional downloads)
+"tests/**" = ["S101"]       # Use of assert in tests
+
+[format]
+quote-style = "double"
+indent-style = "space"

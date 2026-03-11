@@ -1,0 +1,67 @@
+# Qodo (PR-Agent) Configuration
+# See: https://qodo-merge-docs.qodo.ai/tools/review/
+# Purpose: Reduce false positives and tailor reviews to project patterns
+
+[config]
+publish_output = true
+verbosity_level = 2
+
+[pr_reviewer]
+require_score_review = true
+require_tests_review = true
+require_estimate_effort_to_review = false
+
+extra_instructions = """
+Project context:
+- Python FastAPI application for video upscaling using Real-ESRGAN ncnn-vulkan
+- Chunked pipeline architecture for processing movie-length videos (1-3 hours)
+- Single-page frontend with vanilla JS, served by FastAPI static files
+- Designed for local/desktop use on Windows with NVIDIA GPU
+
+Focus ON:
+- Real security issues (path traversal, command injection, subprocess safety)
+- Logic errors in the video processing pipeline
+- Resource management (subprocess handles, file cleanup, disk space)
+- Python best practices and type safety
+
+Skip flagging:
+- Documentation TODOs
+- Test file patterns
+- Binary download URLs in setup_env.py (intentional)
+"""
+
+[pr_reviewer.ignore]
+files = [
+    "*.md",
+    "docs/**",
+    ".claude/**",
+    "bin/**",
+    "workspace/**",
+]
+
+[pr_code_suggestions]
+num_code_suggestions = 4
+demand_code_suggestions_self_review = true
+summarize = true
+
+extra_instructions = """
+When suggesting improvements:
+- Follow existing pipeline architecture patterns
+- Consider Windows-specific subprocess behavior
+- Avoid suggesting changes to intentionally simple code
+"""
+
+[pr_description]
+publish_labels = true
+publish_description_as_comment = false
+use_bullet_points = true
+
+[github_action]
+auto_review = true
+auto_describe = true
+auto_improve = false
+
+[custom_labels]
+"security" = ["path", "subprocess", "injection", "traversal"]
+"performance" = ["chunk", "memory", "disk", "gpu", "vram"]
+"breaking" = ["BREAKING", "migration", "pipeline"]

@@ -1,0 +1,19 @@
+# Qodo PR-Agent Configuration
+# Suppress recurring compliance items
+
+[pr_code_suggestions]
+persistent_comment = true
+extra_instructions = """
+Do NOT suggest the following patterns — they have been evaluated and either
+implemented or intentionally declined in this project:
+
+1. SUBPROCESS SHELL=TRUE: All subprocess calls intentionally use shell=False
+   with argument lists. Do not suggest shell=True alternatives.
+
+2. SYNC ENDPOINT HANDLERS: FastAPI sync endpoints are intentional for
+   long-running video processing that uses subprocess calls. Converting to
+   async would not improve performance since the work is CPU/GPU-bound.
+
+3. BINARY DOWNLOADS: setup_env.py downloads FFmpeg and Real-ESRGAN from
+   specific URLs. These are intentional and version-pinned.
+"""

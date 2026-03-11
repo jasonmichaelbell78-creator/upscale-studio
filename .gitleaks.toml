@@ -1,0 +1,18 @@
+# Gitleaks configuration for Upscale Studio
+# Extends default rules, adds allowlist for known false positives
+
+[extend]
+# Use default gitleaks rules as base
+
+[allowlist]
+description = "Upscale Studio allowlist"
+
+# Paths that contain build artifacts or virtual environments
+paths = [
+  '''venv/''',
+  '''\.venv/''',
+  '''__pycache__/''',
+  '''dist/''',
+  '''build/''',
+  '''\.planning/''',
+]
