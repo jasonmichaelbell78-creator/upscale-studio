@@ -1,19 +1,29 @@
+import json
+import math
 import os
+import shutil
 import subprocess
 import threading
 import time
-import json
 import uuid
-import shutil
-import math
-from pathlib import Path
 
 CHUNK_SIZE = 1000  # frames per processing chunk
 
 ALLOWED_MODELS = {"realesrgan-x4plus", "realesr-animevideov3", "realesrgan-x4plus-anime"}
 ALLOWED_VIDEO_EXTENSIONS = {
-    ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",
-    ".m4v", ".ts", ".mpg", ".mpeg", ".m2ts", ".vob",
+    ".mp4",
+    ".mkv",
+    ".avi",
+    ".mov",
+    ".wmv",
+    ".flv",
+    ".webm",
+    ".m4v",
+    ".ts",
+    ".mpg",
+    ".mpeg",
+    ".m2ts",
+    ".vob",
 }
 
 
@@ -46,8 +56,16 @@ class PipelineManager:
 
         ffmpeg_local = os.path.join(self.bin_dir, "ffmpeg", "ffmpeg.exe")
         ffprobe_local = os.path.join(self.bin_dir, "ffmpeg", "ffprobe.exe")
-        self.ffmpeg = ffmpeg_local if os.path.isfile(ffmpeg_local) else (shutil.which("ffmpeg") or ffmpeg_local)
-        self.ffprobe = ffprobe_local if os.path.isfile(ffprobe_local) else (shutil.which("ffprobe") or ffprobe_local)
+        self.ffmpeg = (
+            ffmpeg_local
+            if os.path.isfile(ffmpeg_local)
+            else (shutil.which("ffmpeg") or ffmpeg_local)
+        )
+        self.ffprobe = (
+            ffprobe_local
+            if os.path.isfile(ffprobe_local)
+            else (shutil.which("ffprobe") or ffprobe_local)
+        )
         self.realesrgan = os.path.join(self.bin_dir, "realesrgan", "realesrgan-ncnn-vulkan.exe")
 
         self.jobs = {}
@@ -58,7 +76,8 @@ class PipelineManager:
     def upload_video(self, file):
         ext = os.path.splitext(file.filename)[1].lower() or ".mp4"
         if ext not in ALLOWED_VIDEO_EXTENSIONS:
-            raise ValueError(f"Unsupported file type: {ext}. Accepted: {', '.join(sorted(ALLOWED_VIDEO_EXTENSIONS))}")
+            accepted = ", ".join(sorted(ALLOWED_VIDEO_EXTENSIONS))
+            raise ValueError(f"Unsupported file type: {ext}. Accepted: {accepted}")
 
         job_id = uuid.uuid4().hex[:8]
         job_dir = os.path.join(self.workspace, job_id)
@@ -80,7 +99,8 @@ class PipelineManager:
 
         ext = os.path.splitext(file_path)[1].lower()
         if ext not in ALLOWED_VIDEO_EXTENSIONS:
-            raise ValueError(f"Unsupported file type: {ext}. Accepted: {', '.join(sorted(ALLOWED_VIDEO_EXTENSIONS))}")
+            accepted = ", ".join(sorted(ALLOWED_VIDEO_EXTENSIONS))
+            raise ValueError(f"Unsupported file type: {ext}. Accepted: {accepted}")
 
         job_id = uuid.uuid4().hex[:8]
         job_dir = os.path.join(self.workspace, job_id)
@@ -96,9 +116,14 @@ class PipelineManager:
 
     def _get_video_info(self, path):
         cmd = [
-            self.ffprobe, "-v", "quiet",
-            "-print_format", "json",
-            "-show_format", "-show_streams", path,
+            self.ffprobe,
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_format",
+            "-show_streams",
+            path,
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
@@ -114,7 +139,10 @@ class PipelineManager:
 
         fps_str = video_stream.get("r_frame_rate", "30/1")
         parts = fps_str.split("/")
-        fps = float(parts[0]) / float(parts[1]) if len(parts) == 2 and float(parts[1]) != 0 else 30.0
+        if len(parts) == 2 and float(parts[1]) != 0:
+            fps = float(parts[0]) / float(parts[1])
+        else:
+            fps = 30.0
 
         duration = float(data["format"].get("duration", 0))
         size_bytes = int(data["format"].get("size", 0))
@@ -185,10 +213,14 @@ class PipelineManager:
 
         original_path = os.path.join(preview_dir, "original.png")
         cmd = [
-            self.ffmpeg, "-y",
-            "-ss", str(timestamp),
-            "-i", job.input_path,
-            "-frames:v", "1",
+            self.ffmpeg,
+            "-y",
+            "-ss",
+            str(timestamp),
+            "-i",
+            job.input_path,
+            "-frames:v",
+            "1",
             original_path,
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -198,11 +230,16 @@ class PipelineManager:
         upscaled_path = os.path.join(preview_dir, "upscaled.png")
         cmd = [
             self.realesrgan,
-            "-i", original_path,
-            "-o", upscaled_path,
-            "-n", model,
-            "-s", str(scale),
-            "-f", "png",
+            "-i",
+            original_path,
+            "-o",
+            upscaled_path,
+            "-n",
+            model,
+            "-s",
+            str(scale),
+            "-f",
+            "png",
         ]
         if tile_size > 0:
             cmd.extend(["-t", str(tile_size)])
@@ -289,7 +326,7 @@ class PipelineManager:
 
                 # Step 1: Extract chunk frames (frame-accurate: -ss after -i)
                 job.status = "extracting"
-                job.phase = f"Extracting frames (chunk {chunk_idx+1}/{total_chunks})..."
+                job.phase = f"Extracting frames (chunk {chunk_idx + 1}/{total_chunks})..."
                 self._extract_chunk(job, chunk_dir, frames_subdir, start_time_sec, frames_in_chunk)
                 if job.cancelled:
                     break
@@ -302,17 +339,24 @@ class PipelineManager:
                 if job.upscale_start_time is None:
                     job.upscale_start_time = time.time()  # start ETA clock on first upscale
                 job.status = "upscaling"
-                job.phase = f"Upscaling (chunk {chunk_idx+1}/{total_chunks})..."
+                job.phase = f"Upscaling (chunk {chunk_idx + 1}/{total_chunks})..."
                 self._upscale_chunk(
-                    job, chunk_dir, frames_subdir, upscaled_subdir,
-                    scale, model, tile_size, cumulative_frames, actual_extracted,
+                    job,
+                    chunk_dir,
+                    frames_subdir,
+                    upscaled_subdir,
+                    scale,
+                    model,
+                    tile_size,
+                    cumulative_frames,
+                    actual_extracted,
                 )
                 if job.cancelled:
                     break
 
                 # Step 3: Encode upscaled frames to video segment
                 job.status = "encoding"
-                job.phase = f"Encoding segment {chunk_idx+1}/{total_chunks}..."
+                job.phase = f"Encoding segment {chunk_idx + 1}/{total_chunks}..."
                 segment_path = os.path.join(segments_dir, f"seg_{chunk_idx:05d}.mp4")
                 self._encode_segment(job, chunk_dir, upscaled_subdir, segment_path, fps, codec)
                 if job.cancelled:
@@ -380,11 +424,20 @@ class PipelineManager:
         """Extract frames with -ss after -i for frame-accurate seeking."""
         cmd = [
             self.ffmpeg,
-            "-i", job.input_path,
-            "-ss", f"{start_time:.6f}",   # after -i = frame-accurate (decode from keyframe)
-            "-frames:v", str(num_frames),
-            "-qscale:v", "1", "-qmin", "1", "-qmax", "1",
-            "-fps_mode", "passthrough",
+            "-i",
+            job.input_path,
+            "-ss",
+            f"{start_time:.6f}",  # after -i = frame-accurate (decode from keyframe)
+            "-frames:v",
+            str(num_frames),
+            "-qscale:v",
+            "1",
+            "-qmin",
+            "1",
+            "-qmax",
+            "1",
+            "-fps_mode",
+            "passthrough",
             os.path.join(frames_dir, "%08d.png"),
         ]
 
@@ -403,15 +456,30 @@ class PipelineManager:
             error_text = self._read_log_tail(log_path)
             raise RuntimeError(f"FFmpeg frame extraction failed:\n{error_text}")
 
-    def _upscale_chunk(self, job, chunk_dir, input_dir, output_dir,
-                       scale, model, tile_size, frame_offset, chunk_frame_count):
+    def _upscale_chunk(
+        self,
+        job,
+        chunk_dir,
+        input_dir,
+        output_dir,
+        scale,
+        model,
+        tile_size,
+        frame_offset,
+        chunk_frame_count,
+    ):
         cmd = [
             self.realesrgan,
-            "-i", input_dir,
-            "-o", output_dir,
-            "-n", model,
-            "-s", str(scale),
-            "-f", "png",
+            "-i",
+            input_dir,
+            "-o",
+            output_dir,
+            "-n",
+            model,
+            "-s",
+            str(scale),
+            "-f",
+            "png",
         ]
         if tile_size > 0:
             cmd.extend(["-t", str(tile_size)])
@@ -438,16 +506,32 @@ class PipelineManager:
 
     def _encode_segment(self, job, chunk_dir, frames_dir, output_path, fps, codec):
         cmd = [
-            self.ffmpeg, "-y",
-            "-framerate", str(fps),
-            "-i", os.path.join(frames_dir, "%08d.png"),
+            self.ffmpeg,
+            "-y",
+            "-framerate",
+            str(fps),
+            "-i",
+            os.path.join(frames_dir, "%08d.png"),
         ]
         if codec == "libx265":
-            cmd.extend(["-c:v", "libx265", "-crf", "20", "-preset", "medium",
-                        "-pix_fmt", "yuv420p", "-tag:v", "hvc1"])
+            cmd.extend(
+                [
+                    "-c:v",
+                    "libx265",
+                    "-crf",
+                    "20",
+                    "-preset",
+                    "medium",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-tag:v",
+                    "hvc1",
+                ]
+            )
         else:
-            cmd.extend(["-c:v", "libx264", "-crf", "18", "-preset", "medium",
-                        "-pix_fmt", "yuv420p"])
+            cmd.extend(
+                ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"]
+            )
         cmd.append(output_path)
 
         log_path = os.path.join(chunk_dir, "ffmpeg_encode.log")
@@ -473,11 +557,18 @@ class PipelineManager:
                 f.write(f"file '{safe_path}'\n")
 
         cmd = [
-            self.ffmpeg, "-y",
-            "-f", "concat", "-safe", "0",
-            "-i", concat_list,
-            "-i", job.input_path,
-            "-map", "0:v:0",
+            self.ffmpeg,
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            concat_list,
+            "-i",
+            job.input_path,
+            "-map",
+            "0:v:0",
         ]
         if job.video_info["has_audio"]:
             cmd.extend(["-map", "1:a?", "-c:a", "copy"])
@@ -504,7 +595,7 @@ class PipelineManager:
     @staticmethod
     def _read_log_tail(log_path, max_chars=2000):
         try:
-            with open(log_path, "r", errors="replace") as f:
+            with open(log_path, errors="replace") as f:
                 content = f.read()
                 return content[-max_chars:] if len(content) > max_chars else content
         except Exception:

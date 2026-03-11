@@ -1,11 +1,11 @@
 import os
-import webbrowser
 import threading
 import time
+import webbrowser
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
 
 from .pipeline import PipelineManager
 
@@ -21,9 +21,11 @@ app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), na
 @app.on_event("startup")
 async def startup_event():
     if os.environ.get("OPEN_BROWSER") == "1":
+
         def _open():
             time.sleep(1.5)
             webbrowser.open("http://localhost:8000")
+
         threading.Thread(target=_open, daemon=True).start()
 
 
@@ -136,5 +138,6 @@ def serve_job_file(job_id: str, path: str):
 
 if __name__ == "__main__":
     import uvicorn
+
     os.environ["OPEN_BROWSER"] = "1"
     uvicorn.run(app, host="127.0.0.1", port=8000)

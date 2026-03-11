@@ -5,10 +5,9 @@ Run via: python setup_env.py  (or through setup.bat)
 """
 
 import os
-import sys
 import shutil
-import zipfile
 import urllib.request
+import zipfile
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BIN_DIR = os.path.join(BASE_DIR, "bin")
@@ -44,7 +43,9 @@ def download_with_progress(url, dest_path):
             if total > 0:
                 pct = int(downloaded / total * 100)
                 bar = "#" * (pct // 2) + "-" * (50 - pct // 2)
-                print(f"\r  [{bar}] {pct}%  ({downloaded // (1024*1024)}MB / {total // (1024*1024)}MB)", end="", flush=True)
+                dl_mb = downloaded // (1024 * 1024)
+                total_mb = total // (1024 * 1024)
+                print(f"\r  [{bar}] {pct}%  ({dl_mb}MB / {total_mb}MB)", end="", flush=True)
     print()  # newline
 
 
@@ -179,6 +180,7 @@ def verify():
     ffmpeg_exe = os.path.join(FFMPEG_DIR, "ffmpeg.exe")
     if os.path.isfile(ffmpeg_exe):
         import subprocess
+
         result = subprocess.run([ffmpeg_exe, "-version"], capture_output=True, text=True)
         version_line = result.stdout.split("\n")[0] if result.stdout else "unknown"
         print(f"  FFmpeg:       {version_line}")

@@ -14,11 +14,13 @@ select = [
     "S",    # flake8-bandit (security)
     "UP",   # pyupgrade
     "SIM",  # flake8-simplify
-    "PTH",  # flake8-use-pathlib
 ]
 ignore = [
     "S603",  # subprocess call - check for execution of untrusted input (we validate inputs)
     "S607",  # starting a process with a partial executable path (we use full paths from bin/)
+    "B008",  # function call in default arg - standard FastAPI pattern (File(...), Form(...))
+    "B904",  # raise from in except - FastAPI HTTPException re-raises are intentional
+    "S110",  # try-except-pass - intentional in subprocess cleanup (_kill_and_wait)
 ]
 
 [lint.per-file-ignores]
