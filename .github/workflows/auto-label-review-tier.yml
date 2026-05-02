@@ -21,7 +21,7 @@ jobs:
 
       - name: Calculate review tier
         id: assign-tier
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             // Get PR diff stats
@@ -70,7 +70,7 @@ jobs:
             console.log(`Assigned tier ${tier}: ${changedFiles} files, ${totalChanges} changes, ${criticalFiles.length} critical files`);
 
       - name: Remove existing tier labels
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const labels = ['tier-0', 'tier-1', 'tier-2', 'tier-3', 'tier-4'];
@@ -92,7 +92,7 @@ jobs:
             }
 
       - name: Add tier label
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const tierRaw = '${{ steps.assign-tier.outputs.tier }}';
