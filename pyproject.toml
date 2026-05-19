@@ -5,8 +5,8 @@ description = "Local browser-based video upscaling using Real-ESRGAN ncnn-vulkan
 requires-python = ">=3.10"
 dependencies = [
     "fastapi==0.136.1",
-    "uvicorn[standard]==0.46.0",
-    "python-multipart==0.0.28",
+    "uvicorn[standard]==0.47.0",
+    "python-multipart==0.0.29",
 ]
 
 [project.optional-dependencies]
