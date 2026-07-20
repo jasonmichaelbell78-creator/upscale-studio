@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Local browser-based video upscaling using Real-ESRGAN ncnn-vulkan"
 requires-python = ">=3.10"
 dependencies = [
-    "fastapi==0.139.0",
+    "fastapi==0.139.2",
     "uvicorn[standard]==0.51.0",
     "python-multipart==0.0.32",
 ]
